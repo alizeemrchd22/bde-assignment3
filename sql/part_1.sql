@@ -1,12 +1,9 @@
 -- BDE AT3 - Part 1
--- SQL I ran in DBeaver (Postgres) to set up the bronze layer
--- and to check the data after the Airflow DAG load
+-- SQL I ran in DBeaver (Postgres) to set up the bronze layer and to check the data after the Airflow DAG load
 
 
 -- 1.2 Bronze schema + raw tables
--- all columns are TEXT on purpose: bronze keeps the data exactly like the CSV,
--- so a bad value never makes the load fail. I cast and clean later in dbt (silver).
--- source_file and loaded_at are added by me to know where and when each row came from.
+-- all columns are TEXT on purpose: bronze keeps the data exactly like the CSV, so a bad value never makes the load fail. I cast and clean later in dbt (silver) source_file and loaded_at are added by me to know where and when each row came from.
 CREATE SCHEMA IF NOT EXISTS bronze;
 
 
@@ -185,6 +182,7 @@ CREATE TABLE bronze.raw_lga_code (
 
 
 -- suburb -> LGA name
+-- (the CSV has extra commas at the end of each line, the DAG drops those empty columns)
 DROP TABLE IF EXISTS bronze.raw_lga_suburb;
 CREATE TABLE bronze.raw_lga_suburb (
     lga_name TEXT,
@@ -203,6 +201,7 @@ WHERE table_schema = 'bronze'
 ORDER BY table_name;
 
 -- row count for each table
+-- (my result: listings 37,562 / g01 132 / g02 132 / lga_code 129 / lga_suburb 4,470)
 SELECT 'raw_listings'   AS table_name, COUNT(*) AS nb_rows FROM bronze.raw_listings
 UNION ALL SELECT 'raw_census_g01', COUNT(*) FROM bronze.raw_census_g01
 UNION ALL SELECT 'raw_census_g02', COUNT(*) FROM bronze.raw_census_g02
@@ -210,7 +209,8 @@ UNION ALL SELECT 'raw_lga_code',   COUNT(*) FROM bronze.raw_lga_code
 UNION ALL SELECT 'raw_lga_suburb', COUNT(*) FROM bronze.raw_lga_suburb;
 
 -- rows per listings file, to check each month was loaded only once
--- (if first_load and last_load are different, the file was loaded twice)
+-- the DAG deletes the rows of a file before loading it again, so even if a task
+-- is retried, first_load and last_load should be the same (no duplicates)
 SELECT source_file,
        COUNT(*)       AS nb_rows,
        MIN(loaded_at) AS first_load,
