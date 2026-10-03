@@ -57,8 +57,7 @@ select
     round(corr(median_age_persons, revenue_per_active_listing)::numeric, 3)     as pearson_corr,
     round(corr(rank_age, rank_revenue)::numeric, 3)                             as spearman_corr,
     -- I print the two ranges as well, just to show how spread out the data is.
-    -- If the ages only go from 33 to 42, a correlation on 9 years of difference is not
-    -- the same story as a correlation on 30 years, and I want that visible in the output.
+    -- Here the ages only go from 32 to 43, so a correlation built on 11 years of difference is not the same story as one built on 30 years, and I want that visible in the output.
     min(median_age_persons) || ' - ' || max(median_age_persons)                 as median_age_range,
     round(min(revenue_per_active_listing), 2) || ' - '
         || round(max(revenue_per_active_listing), 2)                            as revenue_range
