@@ -157,9 +157,9 @@ ranked as (
     select
         *,
         rank() over (partition by listing_neighbourhood order by avg_stays_per_month desc) as rank_by_occupancy,
+        -- careful: this rank is computed on the filtered list, so it is not exactly the same number as in the first query. It barely changes anything in practice, because a combination with less than 120 listing-months can't reach the top on total stays.
         rank() over (partition by listing_neighbourhood order by total_stays desc)         as rank_by_total_stays,
-        -- the gap between the best and the worst type of the neighbourhood. If this stays
-        -- small, it means picking a type barely changes how full the listing is.
+        -- the gap between the best and the worst type, among the ones that passed the 120 filter. If this stays small, it means picking a type barely changes how full the listing is.
         max(avg_stays_per_month) over (partition by listing_neighbourhood)
             - min(avg_stays_per_month) over (partition by listing_neighbourhood)           as spread_in_the_area
     from by_type
