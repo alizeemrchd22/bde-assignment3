@@ -1,4 +1,3 @@
-
 -- BDE AT3 - Part 4 - ad-hoc analysis
 -- I ran all of this in DBeaver (Postgres), after the 12 months were loaded in Part 3 so the data goes from May 2020 to April 2021.
 -- Each question is one query. I ran them one by one and took a screenshot of each result for the report.
@@ -9,15 +8,16 @@
 -- a. What are the demographic differences (age groups, household size) between
 --    the top 3 and the bottom 3 LGAs by estimated revenue per active listing?
 
--- The first thing I had to decide is what "revenue per active listing over the 12 months" actually means because there are two ways to get it and they don't give the same number.
+-- The first thing I had to decide is what "revenue per active listing" actually means over 12 months, because there are two ways to get it and they don't give the same number.
 -- My datamart already gives an average per month, but if I just take the average of those 12 monthly averages, every month counts the same, even a month where the LGA only had a handful of active listings. So I go back to the fact table and do it in one shot:
--- all the revenue of the LGA divided by the number of active listing-months. That way a month with more listings weighs more, which is what I want for a yearly figure.
+-- all the revenue of the LGA divided by the number of active listing-months. That way a month with more listings weighs more, which is what I want.
 
 -- Then I take the 3 best and the 3 worst LGAs and I put the census data next to them so I can compare the age groups and the household size side by side.
 
 
 -- Step 1: the two numbers I need for each LGA, over the whole year. In my fact table estimated_revenue is already 0 for inactive listings, so summing everything only adds up the active ones, I don't need a filter there.
--- Counting the rows where has_availability is true gives me the number of active listing-months, so a listing that stayed active all year counts 12 times. That's on purpose: it's a "per active listing per month" figure, summed over the year.
+-- Counting the rows where has_availability is true gives me the number of active listing-months, so a listing that stayed active all year counts 12 times.
+-- Dividing one by the other gives the average revenue of one active listing in one month, measured over the whole year. It's a monthly amount, not a yearly total, and I have to say it that way in the report.
 with revenue_per_lga as (
 
     select
@@ -66,7 +66,7 @@ selected as (
 ),
 
 -- Step 4: here I bring the census in.
--- G01 gives me 13 narrow age bands, which is way too many for a table in a report, so Iadd them up into 5 bigger bands that I can actually talk about: kids and teenagers young adults, middle aged, close to retirement and elderly.
+-- G01 gives me 13 narrow age bands, which is way too many for a table in a report, so I add them up into 5 bigger bands that I can actually talk about: kids and teenagers, young adults, middle aged, close to retirement and elderly.
 -- I only use the "_p" columns, which are the total persons. The "_m" and "_f" ones are men and women, and the "age_psns_att_educ_inst_" ones are people attending school, not population, so those would be wrong here.
 -- G02 gives me the median age and the average household size, those two are ready to use.
 base as (
@@ -94,7 +94,7 @@ base as (
 -- Step 5: one row per LGA, with the age bands turned into percentages so I can compare a small LGA with a big one.
 -- I divide by the sum of my 5 bands and not by tot_p_p on purpose. The ABS changes the totals a tiny bit for privacy, so tot_p_p is not exactly equal to the sum of the bands.
 -- Dividing by the sum means my 5 percentages always add up to 100, and nobody can ask me why the line doesn't add up.
-det ail as (
+detail as (
 
     select
         1                                                                                   as sort_in_group,
@@ -163,10 +163,13 @@ from combined
 order by revenue_group desc, sort_in_group, revenue_per_active_listing desc;
 
 
+
+
 -- a (extra check): is my top 3 / bottom 3 the same if I compute the revenue the other way?
 -- Here I compare my calculation (all the revenue of the year divided by all the active listing-months) with the simple average of the 12 monthly averages from my datamart.
--- The two columns are not on the same scale, because the datamart one is a monthly figure and mine is a yearly one, so I don't compare the amounts. I only compare the two ranks.
--- If the ranks match at the top and at the bottom, it means my answer to question a doesn't depend on how I chose to average, which is what I wanted to check.
+-- Both are monthly amounts, so the two columns are on the same scale and they come out very close. They are not exactly equal, because mine gives more weight to the months with more
+-- active listings while the datamart one gives every month the same weight. What I really check here are the two rank columns: if they match at the top and at the bottom, my answer
+-- to question a doesn't depend on how I chose to average.
 
 with my_way as (
 
@@ -193,7 +196,7 @@ avg_of_months as (
 
 select
     m.lga_name,
-    round(m.rev_my_way, 2)                              as rev_my_way_yearly,
+    round(m.rev_my_way, 2)                              as rev_my_way_weighted,
     round(d.rev_avg_of_months, 2)                       as rev_avg_of_months,
     rank() over (order by m.rev_my_way desc)            as rank_my_way,
     rank() over (order by d.rev_avg_of_months desc)     as rank_avg_of_months
