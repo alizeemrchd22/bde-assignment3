@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw tables loaded by the Airflow DAG. All columns are stored as TEXT."
+    schema: bronze
+    tables:
+      - name: raw_listings
+        description: "Airbnb Sydney listings, one CSV file per month."
+      - name: raw_census_g01
+        description: "2016 Census G01 - person characteristics per LGA."
+      - name: raw_census_g02
+        description: "2016 Census G02 - medians and averages per LGA."
+      - name: raw_lga_code
+        description: "LGA code to LGA name mapping."
+      - name: raw_lga_suburb
+        description: "Suburb to LGA name mapping."
