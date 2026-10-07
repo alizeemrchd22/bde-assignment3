@@ -1,0 +1,82 @@
+version: 2
+
+# These are my automatic tests so basically every time dbt runs it checks my keys and joins again, so if a new month of data breaks something, I find out straight away instead of later.
+
+models:
+
+  # Silver: I want only one row per host, property, LGA and suburb here because the snapshots need a clean unique key to work properly
+  - name: silver_hosts
+    columns:
+      - name: host_id
+        data_tests: [unique, not_null]
+
+  - name: silver_properties
+    columns:
+      - name: listing_id
+        data_tests: [unique, not_null]
+
+  - name: silver_lga
+    columns:
+      - name: lga_code
+        data_tests: [unique, not_null]
+
+  - name: silver_suburb
+    columns:
+      - name: suburb_name_key
+        data_tests: [unique, not_null]
+
+  # Gold dimensions: with SCD2 a host can have many rows (one per version),
+  # so here I check the version id instead, that one has to be unique.
+  - name: dim_host
+    columns:
+      - name: host_version_id
+        data_tests: [unique, not_null]
+
+  - name: dim_property
+    columns:
+      - name: property_version_id
+        data_tests: [unique, not_null]
+
+  - name: dim_lga
+    columns:
+      - name: lga_version_id
+        data_tests: [unique, not_null]
+
+  - name: dim_suburb
+    columns:
+      - name: suburb_version_id
+        data_tests: [unique, not_null]
+
+  # Census tables: it's just reference data, so I only check there's one row per LGA.
+  - name: census_g01
+    columns:
+      - name: lga_code
+        data_tests: [unique, not_null]
+
+  - name: census_g02
+    columns:
+      - name: lga_code
+        data_tests: [unique, not_null]
+
+  # Fact table: every id has to point to something that really exists in its dimension,
+  # otherwise the star schema joins would lose rows without me noticing.
+  - name: fact_listings
+    columns:
+      - name: listing_id
+        data_tests: [not_null]
+      - name: month_date
+        data_tests: [not_null]
+      - name: host_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_host')
+                field: host_id
+      - name: lga_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_lga')
+                field: lga_code
